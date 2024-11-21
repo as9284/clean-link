@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import "ldrs/lineWobble";
 
 export const Home = () => {
   const [inputLink, setInputLink] = useState("");
