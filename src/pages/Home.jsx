@@ -16,7 +16,7 @@ export const Home = () => {
     setShortenedLink("");
     setLoading(true);
     try {
-      const response = await fetch("/api/api/v1/shorten", {
+      const response = await fetch("/api/v1/shorten", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
