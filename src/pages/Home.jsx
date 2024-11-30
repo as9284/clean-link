@@ -5,7 +5,7 @@ export const Home = () => {
   const [shortenedLink, setShortenedLink] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copySuccess, setCopySuccess] = useState("");
+  const [copySuccess, setCopySuccess] = useState(false);
 
   const shortenLink = async () => {
     if (!inputLink) {
@@ -40,12 +40,11 @@ export const Home = () => {
     navigator.clipboard
       .writeText(shortenedLink)
       .then(() => {
-        setCopySuccess("Copied to clipboard!");
-        setTimeout(() => setCopySuccess(""), 2000);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
       })
       .catch(() => {
-        setCopySuccess("Failed to copy. Please try again.");
-        setTimeout(() => setCopySuccess(""), 2000);
+        setCopySuccess(false);
       });
   };
 
@@ -56,7 +55,7 @@ export const Home = () => {
         <p className="text-base font-medium">Paste a link to shorten it!</p>
       </div>
 
-      <div className="w-full flex flex-col justify-center items-center gap-4">
+      <div className="w-full flex flex-col justify-center items-center gap-2">
         <div className="w-full flex justify-center items-center">
           <input
             type="text"
@@ -94,20 +93,17 @@ export const Home = () => {
                 href={shortenedLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-700 text-lg underline hover:text-blue-800 duration-200"
+                className="text-blue-600 text-lg underline hover:text-blue-700 duration-200"
               >
                 {shortenedLink}
               </a>
             </div>
             <button
               onClick={copyToClipboard}
-              className="min-w-32 h-10 bg-blue-800 rounded-lg hover:bg-blue-900 focus:bg-blue-900 duration-200"
+              className="min-w-32 h-12 bg-blue-800 rounded-lg hover:bg-blue-900 focus:bg-blue-900 duration-200"
             >
-              Copy Link
+              {copySuccess ? "Copied!" : "Copy Link"}
             </button>
-            {copySuccess && (
-              <p className="text-green-600 font-medium">{copySuccess}</p>
-            )}
           </div>
         )}
 
