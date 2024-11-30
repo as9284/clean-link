@@ -5,6 +5,7 @@ export const Home = () => {
   const [shortenedLink, setShortenedLink] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copySuccess, setCopySuccess] = useState("");
 
   const shortenLink = async () => {
     if (!inputLink) {
@@ -32,6 +33,20 @@ export const Home = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyToClipboard = () => {
+    if (!shortenedLink) return;
+    navigator.clipboard
+      .writeText(shortenedLink)
+      .then(() => {
+        setCopySuccess("Copied to clipboard!");
+        setTimeout(() => setCopySuccess(""), 2000);
+      })
+      .catch(() => {
+        setCopySuccess("Failed to copy. Please try again.");
+        setTimeout(() => setCopySuccess(""), 2000);
+      });
   };
 
   return (
@@ -73,8 +88,7 @@ export const Home = () => {
         )}
 
         {shortenedLink && (
-          <div className="w-full flex justify-center items-center gap-2">
-            <p className="text-lg">Result:</p>
+          <div className="w-full flex flex-col justify-center items-center gap-2">
             <div className="flex items-center gap-2">
               <a
                 href={shortenedLink}
@@ -85,6 +99,15 @@ export const Home = () => {
                 {shortenedLink}
               </a>
             </div>
+            <button
+              onClick={copyToClipboard}
+              className="min-w-32 h-10 bg-blue-800 rounded-lg hover:bg-blue-900 focus:bg-blue-900 duration-200"
+            >
+              Copy Link
+            </button>
+            {copySuccess && (
+              <p className="text-green-600 font-medium">{copySuccess}</p>
+            )}
           </div>
         )}
 
