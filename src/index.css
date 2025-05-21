@@ -1,9 +1,21 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --font-inter: Inter, sans-serif;
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 @layer base {
   body {
-    @apply font-inter bg-black text-neutral-200;
+    @apply font-inter bg-neutral-100 text-neutral-800;
   }
 }

@@ -62,15 +62,15 @@ export const Home = () => {
             value={inputLink}
             onChange={(e) => setInputLink(e.target.value)}
             placeholder="Enter a link"
-            className="w-[25rem] h-12 bg-neutral-900 border-2 border-neutral-800 rounded-tl-lg rounded-bl-lg outline-none px-4"
+            className="w-100 h-12 bg-neutral-200 border-2 border-neutral-100 rounded-tl-lg rounded-bl-lg shadow-md px-4 hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
           />
 
           <button
             onClick={shortenLink}
             disabled={loading}
-            className="w-20 h-12 bg-blue-800 rounded-tr-lg rounded-br-lg hover:bg-blue-900 focus:bg-blue-900 duration-200"
+            className="w-20 h-12 font-medium bg-neutral-200 border-2 border-neutral-100 rounded-tr-lg rounded-br-lg cursor-pointer shadow-md hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
           >
-            Start
+            Go
           </button>
         </div>
 
@@ -93,14 +93,14 @@ export const Home = () => {
                 href={shortenedLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 text-lg underline hover:text-blue-700 duration-200"
+                className="text-neutral-800 text-lg underline hover:text-neutral-900 duration-200"
               >
                 {shortenedLink}
               </a>
             </div>
             <button
               onClick={copyToClipboard}
-              className="min-w-32 h-12 bg-blue-800 rounded-lg hover:bg-blue-900 focus:bg-blue-900 duration-200"
+              className="min-w-32 h-12 font-medium bg-neutral-200 border-2 border-neutral-100 rounded-lg cursor-pointer shadow-md hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
             >
               {copySuccess ? "Copied!" : "Copy Link"}
             </button>
