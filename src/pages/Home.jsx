@@ -60,9 +60,10 @@ export const Home = () => {
           <input
             type="text"
             value={inputLink}
-            onSubmit={(e) => {
-              e.preventDefault();
-              shortenLink();
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                shortenLink();
+              }
             }}
             onChange={(e) => setInputLink(e.target.value)}
             placeholder="Enter a link"
