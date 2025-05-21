@@ -49,7 +49,7 @@ export const Home = () => {
   };
 
   return (
-    <div className="w-full min-h-dvh m-auto flex flex-col justify-center items-center p-4 gap-2">
+    <div className="w-full min-h-svh m-auto flex flex-col justify-center items-center p-4 gap-2">
       <div className="w-full flex flex-col justify-center items-center">
         <h1 className="text-4xl font-bold">Clean Link</h1>
         <p className="text-base font-medium">Paste a link to shorten it!</p>
@@ -81,7 +81,7 @@ export const Home = () => {
               stroke="5"
               bg-opacity="0.3"
               speed="1.75"
-              color="white"
+              color="black"
             ></l-line-wobble>
           </div>
         )}
@@ -93,7 +93,7 @@ export const Home = () => {
                 href={shortenedLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-neutral-800 text-lg underline hover:text-neutral-900 duration-200"
+                className="text-neutral-700 text-lg underline hover:text-neutral-900 duration-200"
               >
                 {shortenedLink}
               </a>
