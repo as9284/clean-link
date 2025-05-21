@@ -60,6 +60,10 @@ export const Home = () => {
           <input
             type="text"
             value={inputLink}
+            onSubmit={(e) => {
+              e.preventDefault();
+              shortenLink();
+            }}
             onChange={(e) => setInputLink(e.target.value)}
             placeholder="Enter a link"
             className="w-100 h-12 bg-neutral-200 border-2 border-neutral-100 rounded-tl-lg rounded-bl-lg shadow-md px-4 hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
