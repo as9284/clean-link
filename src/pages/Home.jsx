@@ -49,7 +49,7 @@ export const Home = () => {
   };
 
   return (
-    <div className="w-full min-h-svh m-auto flex flex-col justify-center items-center p-4 gap-4">
+    <div className="relative w-full min-h-svh m-auto flex flex-col justify-center items-center p-4 gap-4">
       <div className="w-full flex flex-col justify-center items-center select-none">
         <h1 className="text-4xl font-bold">Clean Link</h1>
         <p className="text-lg text-neutral-600 font-normal">
@@ -94,7 +94,7 @@ export const Home = () => {
         )}
 
         {shortenedLink && (
-          <div className="w-full flex flex-col justify-center items-center gap-2">
+          <div className="absolute bottom-8 w-full flex flex-col justify-center items-center gap-4">
             <div className="flex items-center gap-2">
               <a
                 href={shortenedLink}
@@ -114,7 +114,9 @@ export const Home = () => {
           </div>
         )}
 
-        {error && <p className="text-red-600 font-medium">{error}</p>}
+        {error && (
+          <p className="absolute top-8 text-red-600 font-medium">{error}</p>
+        )}
       </div>
     </div>
   );
