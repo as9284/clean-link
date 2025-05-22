@@ -49,10 +49,12 @@ export const Home = () => {
   };
 
   return (
-    <div className="w-full min-h-svh m-auto flex flex-col justify-center items-center p-4 gap-2">
-      <div className="w-full flex flex-col justify-center items-center">
+    <div className="w-full min-h-svh m-auto flex flex-col justify-center items-center p-4 gap-4">
+      <div className="w-full flex flex-col justify-center items-center select-none">
         <h1 className="text-4xl font-bold">Clean Link</h1>
-        <p className="text-base font-medium">Paste a link to shorten it!</p>
+        <p className="text-lg text-neutral-600 font-normal">
+          Paste a link to shorten it!
+        </p>
       </div>
 
       <div className="w-full flex flex-col justify-center items-center gap-2">
@@ -67,13 +69,13 @@ export const Home = () => {
             }}
             onChange={(e) => setInputLink(e.target.value)}
             placeholder="Enter a link"
-            className="w-100 h-12 bg-neutral-200 border-2 border-neutral-100 rounded-tl-lg rounded-bl-lg shadow-md px-4 hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
+            className="w-100 h-12 bg-neutral-100 border-2 border-neutral-100 rounded-tl-lg rounded-bl-lg shadow-md px-4 hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
           />
 
           <button
             onClick={shortenLink}
             disabled={loading}
-            className="w-20 h-12 font-medium bg-neutral-200 border-2 border-neutral-100 rounded-tr-lg rounded-br-lg cursor-pointer shadow-md hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
+            className="w-20 h-12 font-medium bg-neutral-100 border-2 border-neutral-100 rounded-tr-lg rounded-br-lg cursor-pointer shadow-md hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
           >
             Go
           </button>
@@ -98,14 +100,14 @@ export const Home = () => {
                 href={shortenedLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-neutral-700 text-lg underline hover:text-neutral-900 duration-200"
+                className="text-neutral-500 text-lg underline hover:text-neutral-900 duration-200"
               >
                 {shortenedLink}
               </a>
             </div>
             <button
               onClick={copyToClipboard}
-              className="min-w-32 h-12 font-medium bg-neutral-200 border-2 border-neutral-100 rounded-lg cursor-pointer shadow-md hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
+              className="min-w-32 h-12 font-medium bg-neutral-100 border-2 border-neutral-100 rounded-lg cursor-pointer shadow-md hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
             >
               {copySuccess ? "Copied!" : "Copy Link"}
             </button>
