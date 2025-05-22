@@ -114,9 +114,7 @@ export const Home = () => {
           </div>
         )}
 
-        {error && (
-          <p className="absolute top-8 text-red-600 font-medium">{error}</p>
-        )}
+        {error && <p className="text-red-600 font-medium">{error}</p>}
       </div>
     </div>
   );
