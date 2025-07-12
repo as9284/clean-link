@@ -7,7 +7,7 @@ export const Home = () => {
   const [loading, setLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
-  const shortenLink = async () => {
+  const shortenLink = async (retryCount = 0) => {
     if (!inputLink) {
       setError("Please enter a valid URL");
       return;
@@ -23,10 +23,26 @@ export const Home = () => {
         },
         body: JSON.stringify({ url: inputLink }),
       });
-      if (!response.ok) {
-        throw new Error("Failed to shorten the link.");
-      }
+      
       const data = await response.json();
+      
+      if (!response.ok) {
+        // Handle different types of errors
+        if (response.status === 400) {
+          throw new Error(data.error || "Invalid URL format");
+        } else if (response.status === 503 && retryCount < 2) {
+          // Retry for service unavailability
+          const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s
+          console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1})`);
+          setTimeout(() => shortenLink(retryCount + 1), delay);
+          return;
+        } else if (response.status === 503) {
+          throw new Error("URL shortening services are temporarily unavailable. Please try again in a moment.");
+        } else {
+          throw new Error(data.error || "Failed to shorten the link.");
+        }
+      }
+      
       if (data.result_url) {
         setShortenedLink(data.result_url);
       } else if (data.error) {
@@ -36,7 +52,7 @@ export const Home = () => {
       }
     } catch (err) {
       console.error("API Error:", err);
-      setError("Something went wrong. Please try again.");
+      setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }

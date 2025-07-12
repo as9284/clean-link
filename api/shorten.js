@@ -1,5 +1,26 @@
 import fetch from "node-fetch";
 
+// Timeout configuration
+const TIMEOUT_MS = 10000; // 10 seconds
+
+// Create a timeout wrapper for fetch
+async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
 export default async function handler(req, res) {
   // Enable CORS for all origins
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -23,48 +44,127 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "URL is required" });
     }
 
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch (urlError) {
+      return res.status(400).json({ error: "Invalid URL format" });
+    }
+
     console.log(`Attempting to shorten URL: ${url}`);
 
-    // Try CleanURI first
-    try {
-      const formData = new URLSearchParams();
-      formData.append("url", url);
+    // Try multiple URL shortening services with better error handling
+    const services = [
+      {
+        name: "CleanURI",
+        handler: async () => {
+          const formData = new URLSearchParams();
+          formData.append("url", url);
 
-      const response = await fetch("https://cleanuri.com/api/v1/shorten", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
+          const response = await fetchWithTimeout(
+            "https://cleanuri.com/api/v1/shorten",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "CleanLink/1.0",
+              },
+              body: formData.toString(),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.result_url) {
+              return data.result_url;
+            }
+          }
+          throw new Error(`CleanURI failed with status: ${response.status}`);
         },
-        body: formData.toString(),
-      });
+      },
+      {
+        name: "TinyURL",
+        handler: async () => {
+          const response = await fetchWithTimeout(
+            `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`,
+            {
+              headers: {
+                "User-Agent": "CleanLink/1.0",
+              },
+            }
+          );
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log("CleanURI successful:", data);
-        return res.json(data);
-      } else {
-        console.log(`CleanURI failed with status: ${response.status}`);
+          if (response.ok) {
+            const shortenedUrl = await response.text();
+            if (shortenedUrl && !shortenedUrl.includes("Error")) {
+              return shortenedUrl;
+            }
+          }
+          throw new Error(`TinyURL failed with status: ${response.status}`);
+        },
+      },
+      {
+        name: "Is.gd",
+        handler: async () => {
+          const response = await fetchWithTimeout(
+            `https://is.gd/create.php?format=json&url=${encodeURIComponent(
+              url
+            )}`,
+            {
+              headers: {
+                "User-Agent": "CleanLink/1.0",
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.shorturl) {
+              return data.shorturl;
+            }
+          }
+          throw new Error(`Is.gd failed with status: ${response.status}`);
+        },
+      },
+    ];
+
+    // Try each service in parallel with individual timeouts
+    const promises = services.map(async (service) => {
+      try {
+        const result = await service.handler();
+        return { service: service.name, result };
+      } catch (error) {
+        console.log(`${service.name} failed:`, error.message);
+        return { service: service.name, error: error.message };
       }
-    } catch (cleanUriError) {
-      console.log("CleanURI failed:", cleanUriError.message);
+    });
+
+    const results = await Promise.allSettled(promises);
+
+    // Find the first successful result
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value.result) {
+        console.log(`${result.value.service} successful:`, result.value.result);
+        return res.json({ result_url: result.value.result });
+      }
     }
 
-    // Fallback to TinyURL API
-    console.log("Trying TinyURL as fallback...");
-    const tinyUrlResponse = await fetch(
-      `https://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`
-    );
+    // If all services failed, provide a more detailed error
+    const failedServices = results
+      .filter((r) => r.status === "fulfilled" && r.value.error)
+      .map((r) => r.value.service);
 
-    if (tinyUrlResponse.ok) {
-      const shortenedUrl = await tinyUrlResponse.text();
-      console.log("TinyURL successful:", shortenedUrl);
-      return res.json({ result_url: shortenedUrl });
-    } else {
-      console.log(`TinyURL failed with status: ${tinyUrlResponse.status}`);
-      throw new Error("Both URL shortening services failed");
-    }
+    console.error("All URL shortening services failed:", failedServices);
+    return res.status(503).json({
+      error:
+        "All URL shortening services are temporarily unavailable. Please try again in a moment.",
+      details: `Failed services: ${failedServices.join(", ")}`,
+    });
   } catch (error) {
-    console.error("Error shortening URL:", error);
-    res.status(500).json({ error: "Failed to shorten URL. Please try again." });
+    console.error("Unexpected error shortening URL:", error);
+    res.status(500).json({
+      error: "An unexpected error occurred. Please try again.",
+      details: error.message,
+    });
   }
 }
