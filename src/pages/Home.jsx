@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 
 export const Home = () => {
   const [inputLink, setInputLink] = useState("");
@@ -7,8 +7,9 @@ export const Home = () => {
   const [loading, setLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const requestInProgress = useRef(false);
+  const abortControllerRef = useRef(null);
 
-  const shortenLink = async (retryCount = 0) => {
+  const shortenLink = useCallback(async (retryCount = 0) => {
     if (!inputLink) {
       setError("Please enter a valid URL");
       return;
@@ -18,6 +19,14 @@ export const Home = () => {
     if (requestInProgress.current) {
       return;
     }
+
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
 
     requestInProgress.current = true;
     setError("");
@@ -31,7 +40,13 @@ export const Home = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url: inputLink }),
+        signal: abortControllerRef.current.signal,
       });
+
+      // Check if request was aborted
+      if (abortControllerRef.current.signal.aborted) {
+        return;
+      }
 
       // Check if response is JSON
       const contentType = response.headers.get("content-type");
@@ -58,7 +73,12 @@ export const Home = () => {
         } else if (response.status === 503 && retryCount < 2) {
           // Retry for service unavailability
           const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s
-          setTimeout(() => shortenLink(retryCount + 1), delay);
+          setTimeout(() => {
+            // Only retry if we're still in the same request cycle
+            if (requestInProgress.current) {
+              shortenLink(retryCount + 1);
+            }
+          }, delay);
           return;
         } else if (response.status === 503) {
           throw new Error(
@@ -79,12 +99,19 @@ export const Home = () => {
         throw new Error("Invalid response from server");
       }
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
+      // Only set error if request wasn't aborted
+      if (!abortControllerRef.current?.signal.aborted) {
+        setError(err.message || "Something went wrong. Please try again.");
+      }
     } finally {
-      setLoading(false);
-      requestInProgress.current = false;
+      // Only reset state if this is still the current request
+      if (requestInProgress.current) {
+        setLoading(false);
+        requestInProgress.current = false;
+        abortControllerRef.current = null;
+      }
     }
-  };
+  }, [inputLink]);
 
   const copyToClipboard = () => {
     if (!shortenedLink) return;
@@ -98,6 +125,15 @@ export const Home = () => {
         setCopySuccess(false);
       });
   };
+
+  // Cleanup function for component unmount
+  React.useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4 sm:p-6">
