@@ -40,22 +40,61 @@ export function saveStorage(storage) {
  * @returns {Promise<string>} A 6-character base62 code
  */
 export async function generateShortCode(url) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(url);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  // Take first 8 characters and convert to base62 for shorter codes
+  try {
+    // Use a faster approach with SHA-1 instead of SHA-256 for better performance
+    const encoder = new TextEncoder();
+    const data = encoder.encode(url);
+    const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    // Take first 6 characters for a shorter, faster code
+    const base62Chars =
+      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    let num = parseInt(hashHex.substring(0, 6), 16);
+    let code = "";
+
+    // Generate 5-character code for better performance
+    for (let i = 0; i < 5; i++) {
+      code = base62Chars[num % 62] + code;
+      num = Math.floor(num / 62);
+    }
+
+    return code;
+  } catch (error) {
+    // Fallback to a simple hash if crypto.subtle fails
+    console.warn("Web Crypto API failed, using fallback:", error);
+    return generateFallbackCode(url);
+  }
+}
+
+/**
+ * Fallback code generation using simple string manipulation
+ * @param {string} url - The URL to generate a code for
+ * @returns {string} A 5-character code
+ */
+function generateFallbackCode(url) {
   const base62Chars =
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  let num = parseInt(hashHex.substring(0, 8), 16);
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code = base62Chars[num % 62] + code;
-    num = Math.floor(num / 62);
+  let hash = 0;
+
+  // Simple hash function
+  for (let i = 0; i < url.length; i++) {
+    const char = url.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32-bit integer
   }
+
+  // Convert to base62
+  let code = "";
+  const absHash = Math.abs(hash);
+  for (let i = 0; i < 5; i++) {
+    code = base62Chars[absHash % 62] + code;
+    hash = Math.floor(absHash / 62);
+  }
+
   return code;
 }
 

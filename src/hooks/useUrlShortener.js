@@ -7,7 +7,7 @@ export const useUrlShortener = () => {
   const requestInProgress = useRef(false);
   const abortControllerRef = useRef(null);
 
-  const shortenUrl = useCallback(async (url) => {
+  const shortenUrl = useCallback(async (url, retryCount = 0) => {
     if (!url?.trim()) {
       setError("Please enter a valid URL");
       return;
@@ -61,7 +61,29 @@ export const useUrlShortener = () => {
     } catch (err) {
       // Only set error if request wasn't aborted
       if (!abortControllerRef.current?.signal.aborted) {
-        setError(err.message || "Something went wrong. Please try again.");
+        // Handle timeout errors with retry logic
+        if (
+          err.message.includes("timeout") ||
+          err.message.includes("Failed to fetch") ||
+          response?.status === 504
+        ) {
+          if (retryCount < 2) {
+            // Retry with exponential backoff
+            const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s
+            setTimeout(() => {
+              if (requestInProgress.current) {
+                shortenUrl(url, retryCount + 1);
+              }
+            }, delay);
+            return;
+          } else {
+            setError(
+              "Service temporarily unavailable. Please try again in a moment."
+            );
+          }
+        } else {
+          setError(err.message || "Something went wrong. Please try again.");
+        }
       }
     } finally {
       // Only reset state if this is still the current request

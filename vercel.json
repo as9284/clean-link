@@ -21,7 +21,7 @@
   ],
   "functions": {
     "api/shorten.js": {
-      "maxDuration": 10
+      "maxDuration": 15
     },
     "api/r/[code].js": {
       "maxDuration": 10

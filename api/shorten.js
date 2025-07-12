@@ -50,24 +50,40 @@ export default async function handler(req, res) {
       return res.json({ result_url: shortUrl });
     }
 
-    // Generate short code (async)
-    let shortCode = await generateShortCode(normalizedUrl);
+    // Generate short code (async) with timeout protection
+    let shortCode;
+    try {
+      shortCode = await Promise.race([
+        generateShortCode(normalizedUrl),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("Code generation timeout")), 3000)
+        )
+      ]);
+    } catch (error) {
+      console.error("Code generation failed:", error);
+      return res.status(500).json({ 
+        error: "Failed to generate short code. Please try again." 
+      });
+    }
 
-    // Ensure uniqueness (handle collisions)
+    // Ensure uniqueness (handle collisions) - reduced attempts for speed
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 3; // Reduced from 10 to 3 for faster response
     while (storage.codeToUrl[shortCode] && attempts < maxAttempts) {
       // Add random suffix to make it unique
       const randomSuffix = Math.random().toString(36).substring(2, 4);
-      shortCode = await generateShortCode(normalizedUrl + randomSuffix);
+      try {
+        shortCode = await Promise.race([
+          generateShortCode(normalizedUrl + randomSuffix),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Code generation timeout")), 2000)
+          )
+        ]);
+      } catch (error) {
+        console.error("Collision resolution failed:", error);
+        break; // Use the existing code even if collision
+      }
       attempts++;
-    }
-
-    // If we couldn't generate a unique code after max attempts
-    if (attempts >= maxAttempts) {
-      return res.status(500).json({
-        error: "Unable to generate unique short code. Please try again.",
-      });
     }
 
     // Store the mapping
