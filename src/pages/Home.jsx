@@ -27,8 +27,15 @@ export const Home = () => {
         throw new Error("Failed to shorten the link.");
       }
       const data = await response.json();
-      setShortenedLink(data.result_url);
+      if (data.result_url) {
+        setShortenedLink(data.result_url);
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error("Invalid response from server");
+      }
     } catch (err) {
+      console.error("API Error:", err);
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
@@ -49,72 +56,117 @@ export const Home = () => {
   };
 
   return (
-    <div className="relative w-full min-h-svh m-auto flex flex-col justify-center items-center p-4 gap-4">
-      <div className="w-full flex flex-col justify-center items-center select-none">
-        <h1 className="text-4xl font-bold">Clean Link</h1>
-        <p className="text-lg text-neutral-600 font-normal">
-          Paste a link to shorten it!
-        </p>
-      </div>
-
-      <div className="w-full flex flex-col justify-center items-center gap-2">
-        <div className="w-full flex justify-center items-center">
-          <input
-            type="text"
-            value={inputLink}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                shortenLink();
-              }
-            }}
-            onChange={(e) => setInputLink(e.target.value)}
-            placeholder="Enter a link"
-            className="w-100 h-12 bg-neutral-100 border-2 border-neutral-100 rounded-tl-lg rounded-bl-lg shadow-md px-4 hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
-          />
-
-          <button
-            onClick={shortenLink}
-            disabled={loading}
-            className="w-20 h-12 font-medium bg-neutral-100 border-2 border-neutral-100 rounded-tr-lg rounded-br-lg cursor-pointer shadow-md hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
-          >
-            Go
-          </button>
+    <div className="min-h-screen bg-white flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-lg sm:max-w-2xl">
+        {/* Header */}
+        <div className="text-center mb-12 sm:mb-16">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-black rounded-full mb-6 sm:mb-8">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tight mb-3 sm:mb-4">
+            CLEAN LINK
+          </h1>
+          <div className="w-16 sm:w-24 h-px bg-black mx-auto mb-4 sm:mb-6"></div>
+          <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest">
+            Minimal URL shortening
+          </p>
         </div>
 
-        {loading && (
-          <div>
-            <l-line-wobble
-              size="80"
-              stroke="5"
-              bg-opacity="0.3"
-              speed="1.75"
-              color="black"
-            ></l-line-wobble>
-          </div>
-        )}
-
-        {shortenedLink && (
-          <div className="absolute bottom-8 w-full flex flex-col justify-center items-center gap-4">
-            <div className="flex items-center gap-2">
-              <a
-                href={shortenedLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-neutral-500 text-lg underline hover:text-neutral-900 duration-200"
+        {/* Main content */}
+        <div className="space-y-6 sm:space-y-8">
+          {/* Input section */}
+          <div className="relative">
+            <div className="flex flex-col sm:flex-row sm:items-center border-b-2 border-gray-200 pb-4 transition-all duration-300 focus-within:border-black">
+              <input
+                type="text"
+                value={inputLink}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    shortenLink();
+                  }
+                }}
+                onChange={(e) => setInputLink(e.target.value)}
+                placeholder="Enter URL to shorten"
+                className="flex-1 bg-transparent text-base sm:text-lg placeholder-gray-400 focus:outline-none font-light transition-all duration-300 focus:placeholder-gray-300"
+              />
+              <button
+                onClick={shortenLink}
+                disabled={loading}
+                className="mt-4 sm:mt-0 sm:ml-4 px-6 sm:px-8 py-3 bg-black text-white text-sm font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95"
               >
-                {shortenedLink}
-              </a>
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-4 h-4 border border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    <span className="text-xs sm:text-sm">SHORTENING</span>
+                  </div>
+                ) : (
+                  "SHORTEN"
+                )}
+              </button>
             </div>
-            <button
-              onClick={copyToClipboard}
-              className="min-w-32 h-12 font-medium bg-neutral-100 border-2 border-neutral-100 rounded-lg cursor-pointer shadow-md hover:bg-neutral-300 focus:bg-neutral-300 duration-200"
-            >
-              {copySuccess ? "Copied!" : "Copy Link"}
-            </button>
-          </div>
-        )}
 
-        {error && <p className="text-red-600 font-medium">{error}</p>}
+            {error && (
+              <div className="mt-4 text-red-600 text-sm font-light animate-fade-in">
+                {error}
+              </div>
+            )}
+          </div>
+
+          {/* Result section */}
+          {shortenedLink && (
+            <div className="animate-fade-in">
+              <div className="border-t border-gray-200 pt-6 sm:pt-8">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h3 className="text-base sm:text-lg font-medium text-black">
+                    SHORTENED URL
+                  </h3>
+                  <div className="w-2 h-2 bg-black rounded-full"></div>
+                </div>
+                
+                <div className="bg-gray-50 p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg">
+                  <a
+                    href={shortenedLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-black text-sm sm:text-lg font-light hover:text-gray-600 transition-colors duration-300 break-all"
+                  >
+                    {shortenedLink}
+                  </a>
+                </div>
+
+                <button
+                  onClick={copyToClipboard}
+                  className="w-full py-3 sm:py-4 bg-black text-white text-sm font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-all duration-300 flex items-center justify-center transform hover:scale-105 active:scale-95"
+                >
+                  {copySuccess ? (
+                    <>
+                      <svg className="w-4 h-4 mr-2 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-xs sm:text-sm">COPIED</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs sm:text-sm">COPY LINK</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="absolute bottom-4 sm:bottom-8 left-1/2 transform -translate-x-1/2">
+          <p className="text-xs text-gray-400 uppercase tracking-widest">
+            Simple • Fast • Clean
+          </p>
+        </div>
       </div>
     </div>
   );
