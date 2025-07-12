@@ -5,7 +5,7 @@ A minimal URL shortening application built with React and Vercel serverless func
 ## Features
 
 - Clean, minimal UI design
-- URL shortening using multiple services (CleanURI + TinyURL fallback)
+- URL shortening using multiple services (CleanURI + TinyURL + Is.gd fallback)
 - Copy to clipboard functionality
 - Responsive design
 - Deployed on Vercel with serverless API
@@ -67,16 +67,14 @@ No environment variables are required for basic functionality.
 
 ### Troubleshooting Vercel Deployment
 
-If you encounter MIME type errors or asset loading issues:
+If you encounter issues:
 
-1. **Clear Vercel cache** and redeploy
-2. **Check Vercel function logs** in the Vercel dashboard
-3. **Verify the API endpoint** is accessible at `/api/shorten`
-4. **Ensure the build process** completes successfully
+1. **Check Vercel function logs** in the Vercel dashboard
+2. **Verify the API endpoint** is accessible at `/api/shorten`
+3. **Ensure the build process** completes successfully
 
 ### Common Vercel Issues
 
-- **MIME type errors**: Usually resolved by clearing cache and redeploying
 - **Function timeouts**: The serverless function has a timeout limit
 - **Cold starts**: First request might be slower
 - **API rate limits**: External services might have rate limits
@@ -91,5 +89,5 @@ If you encounter MIME type errors or asset loading issues:
 
 - **Frontend**: React, Vite, Tailwind CSS
 - **Backend**: Vercel serverless functions
-- **URL Shortening**: CleanURI API + TinyURL API (fallback)
+- **URL Shortening**: CleanURI API + TinyURL API + Is.gd API (fallback)
 - **Deployment**: Vercel

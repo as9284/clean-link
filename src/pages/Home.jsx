@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
 export const Home = () => {
   const [inputLink, setInputLink] = useState("");
@@ -6,17 +6,25 @@ export const Home = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const requestInProgress = useRef(false);
 
   const shortenLink = async (retryCount = 0) => {
     if (!inputLink) {
       setError("Please enter a valid URL");
       return;
     }
+
+    // Prevent multiple simultaneous requests
+    if (requestInProgress.current) {
+      return;
+    }
+
+    requestInProgress.current = true;
     setError("");
     setShortenedLink("");
     setLoading(true);
+    
     try {
-      console.log("Sending request to /api/shorten");
       const response = await fetch("/api/shorten", {
         method: "POST",
         headers: {
@@ -24,41 +32,21 @@ export const Home = () => {
         },
         body: JSON.stringify({ url: inputLink }),
       });
-
-      console.log("Response status:", response.status);
-      console.log(
-        "Response headers:",
-        Object.fromEntries(response.headers.entries())
-      );
-
+      
       // Check if response is JSON
       const contentType = response.headers.get("content-type");
-      console.log("Content-Type:", contentType);
-
+      
       if (!contentType || !contentType.includes("application/json")) {
-        console.error("Non-JSON response received:", contentType);
-        // Try to get the response text for debugging
-        const responseText = await response.text();
-        console.error("Response text:", responseText);
-        throw new Error(
-          "Server returned an invalid response. Please try again."
-        );
+        throw new Error("Server returned an invalid response. Please try again.");
       }
-
+      
       let data;
       try {
         data = await response.json();
-        console.log("Parsed JSON data:", data);
       } catch (jsonError) {
-        console.error("Failed to parse JSON response:", jsonError);
-        // Try to get the response text for debugging
-        const responseText = await response.text();
-        console.error("Response text that failed to parse:", responseText);
-        throw new Error(
-          "Server returned an invalid response. Please try again."
-        );
+        throw new Error("Server returned an invalid response. Please try again.");
       }
-
+      
       if (!response.ok) {
         // Handle different types of errors
         if (response.status === 400) {
@@ -66,30 +54,29 @@ export const Home = () => {
         } else if (response.status === 503 && retryCount < 2) {
           // Retry for service unavailability
           const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s
-          console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1})`);
           setTimeout(() => shortenLink(retryCount + 1), delay);
           return;
         } else if (response.status === 503) {
-          throw new Error(
-            "URL shortening services are temporarily unavailable. Please try again in a moment."
-          );
+          throw new Error("URL shortening services are temporarily unavailable. Please try again in a moment.");
         } else {
           throw new Error(data.error || "Failed to shorten the link.");
         }
       }
-
+      
       if (data.result_url) {
         setShortenedLink(data.result_url);
+        // Add a small delay to prevent rapid successive requests
+        await new Promise(resolve => setTimeout(resolve, 500));
       } else if (data.error) {
         throw new Error(data.error);
       } else {
         throw new Error("Invalid response from server");
       }
     } catch (err) {
-      console.error("API Error:", err);
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+      requestInProgress.current = false;
     }
   };
 
