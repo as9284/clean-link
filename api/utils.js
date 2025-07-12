@@ -1,5 +1,3 @@
-import crypto from "crypto";
-
 // In-memory storage for Vercel serverless functions
 // Note: This will reset on each cold start, but provides fast performance
 let urlStorage = {
@@ -37,26 +35,27 @@ export function saveStorage(storage) {
 }
 
 /**
- * Generate a short code from a URL
+ * Generate a short code from a URL using Web Crypto API (async)
  * @param {string} url - The URL to generate a code for
- * @returns {string} A 6-character base62 code
+ * @returns {Promise<string>} A 6-character base62 code
  */
-export function generateShortCode(url) {
-  // Create a hash of the URL
-  const hash = crypto.createHash("md5").update(url).digest("hex");
-
+export async function generateShortCode(url) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(url);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
   // Take first 8 characters and convert to base62 for shorter codes
   const base62Chars =
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  let num = parseInt(hash.substring(0, 8), 16);
+  let num = parseInt(hashHex.substring(0, 8), 16);
   let code = "";
-
-  // Convert to base62 (6 characters max)
   for (let i = 0; i < 6; i++) {
     code = base62Chars[num % 62] + code;
     num = Math.floor(num / 62);
   }
-
   return code;
 }
 
@@ -81,12 +80,10 @@ export function isValidUrl(url) {
  */
 export function cleanUrl(url) {
   let normalizedUrl = url.trim();
-
   // Add protocol if missing
   if (!normalizedUrl.match(/^https?:\/\//)) {
     normalizedUrl = "https://" + normalizedUrl;
   }
-
   return normalizedUrl;
 }
 
@@ -123,7 +120,6 @@ export function handlePreflight(req, res) {
  */
 export function parseRequestBody(req, res) {
   let body = req.body;
-
   // If body is a string, try to parse it as JSON
   if (typeof body === "string") {
     try {
@@ -133,12 +129,10 @@ export function parseRequestBody(req, res) {
       return null;
     }
   }
-
   // Validate body
   if (!body || typeof body !== "object") {
     res.status(400).json({ error: "Request body must be a JSON object" });
     return null;
   }
-
   return body;
 }

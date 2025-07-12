@@ -50,8 +50,8 @@ export default async function handler(req, res) {
       return res.json({ result_url: shortUrl });
     }
 
-    // Generate short code
-    let shortCode = generateShortCode(normalizedUrl);
+    // Generate short code (async)
+    let shortCode = await generateShortCode(normalizedUrl);
 
     // Ensure uniqueness (handle collisions)
     let attempts = 0;
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     while (storage.codeToUrl[shortCode] && attempts < maxAttempts) {
       // Add random suffix to make it unique
       const randomSuffix = Math.random().toString(36).substring(2, 4);
-      shortCode = generateShortCode(normalizedUrl + randomSuffix);
+      shortCode = await generateShortCode(normalizedUrl + randomSuffix);
       attempts++;
     }
 
