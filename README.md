@@ -55,11 +55,10 @@ This app is configured for Vercel deployment with serverless functions.
    - Connect your repository in the Vercel dashboard
    - Vercel will automatically deploy on every push
 
-### Project Structure for Vercel
+### Project Structure
 
 - `api/shorten.js` - Serverless function for URL shortening
 - `src/` - React frontend code
-- `vercel.json` - Vercel configuration
 - `package.json` - Build configuration
 
 ### Environment Variables
@@ -68,15 +67,16 @@ No environment variables are required for basic functionality.
 
 ### Troubleshooting Vercel Deployment
 
-If the link shortening doesn't work in production:
+If you encounter MIME type errors or asset loading issues:
 
-1. **Check Vercel function logs** in the Vercel dashboard
-2. **Verify the API endpoint** is accessible at `/api/shorten`
-3. **Check if the external URL shortening services** are accessible from Vercel's regions
-4. **Ensure CORS is properly configured** (handled in the serverless function)
+1. **Clear Vercel cache** and redeploy
+2. **Check Vercel function logs** in the Vercel dashboard
+3. **Verify the API endpoint** is accessible at `/api/shorten`
+4. **Ensure the build process** completes successfully
 
 ### Common Vercel Issues
 
+- **MIME type errors**: Usually resolved by clearing cache and redeploying
 - **Function timeouts**: The serverless function has a timeout limit
 - **Cold starts**: First request might be slower
 - **API rate limits**: External services might have rate limits
