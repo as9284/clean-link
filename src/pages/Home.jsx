@@ -16,6 +16,7 @@ export const Home = () => {
     setShortenedLink("");
     setLoading(true);
     try {
+      console.log("Sending request to /api/shorten");
       const response = await fetch("/api/shorten", {
         method: "POST",
         headers: {
@@ -23,9 +24,41 @@ export const Home = () => {
         },
         body: JSON.stringify({ url: inputLink }),
       });
-      
-      const data = await response.json();
-      
+
+      console.log("Response status:", response.status);
+      console.log(
+        "Response headers:",
+        Object.fromEntries(response.headers.entries())
+      );
+
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      console.log("Content-Type:", contentType);
+
+      if (!contentType || !contentType.includes("application/json")) {
+        console.error("Non-JSON response received:", contentType);
+        // Try to get the response text for debugging
+        const responseText = await response.text();
+        console.error("Response text:", responseText);
+        throw new Error(
+          "Server returned an invalid response. Please try again."
+        );
+      }
+
+      let data;
+      try {
+        data = await response.json();
+        console.log("Parsed JSON data:", data);
+      } catch (jsonError) {
+        console.error("Failed to parse JSON response:", jsonError);
+        // Try to get the response text for debugging
+        const responseText = await response.text();
+        console.error("Response text that failed to parse:", responseText);
+        throw new Error(
+          "Server returned an invalid response. Please try again."
+        );
+      }
+
       if (!response.ok) {
         // Handle different types of errors
         if (response.status === 400) {
@@ -37,12 +70,14 @@ export const Home = () => {
           setTimeout(() => shortenLink(retryCount + 1), delay);
           return;
         } else if (response.status === 503) {
-          throw new Error("URL shortening services are temporarily unavailable. Please try again in a moment.");
+          throw new Error(
+            "URL shortening services are temporarily unavailable. Please try again in a moment."
+          );
         } else {
           throw new Error(data.error || "Failed to shorten the link.");
         }
       }
-      
+
       if (data.result_url) {
         setShortenedLink(data.result_url);
       } else if (data.error) {
@@ -77,8 +112,18 @@ export const Home = () => {
         {/* Header */}
         <div className="text-center mb-12 sm:mb-16">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-black rounded-full mb-6 sm:mb-8">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            <svg
+              className="w-6 h-6 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1}
+                d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+              />
             </svg>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tight mb-3 sm:mb-4">
@@ -140,7 +185,7 @@ export const Home = () => {
                   </h3>
                   <div className="w-2 h-2 bg-black rounded-full"></div>
                 </div>
-                
+
                 <div className="bg-gray-50 p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg">
                   <a
                     href={shortenedLink}
@@ -158,15 +203,35 @@ export const Home = () => {
                 >
                   {copySuccess ? (
                     <>
-                      <svg className="w-4 h-4 mr-2 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-4 h-4 mr-2 animate-bounce"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                       <span className="text-xs sm:text-sm">COPIED</span>
                     </>
                   ) : (
                     <>
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      <svg
+                        className="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1}
+                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                        />
                       </svg>
                       <span className="text-xs sm:text-sm">COPY LINK</span>
                     </>

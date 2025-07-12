@@ -22,6 +22,9 @@ async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
 }
 
 export default async function handler(req, res) {
+  // Set proper JSON content type
+  res.setHeader("Content-Type", "application/json");
+
   // Enable CORS for all origins
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
