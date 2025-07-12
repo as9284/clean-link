@@ -50,17 +50,17 @@ export const Home = () => {
 
       // Check if response is JSON
       const contentType = response.headers.get("content-type");
+      const responseText = await response.text();
 
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error(
-          "Server returned an invalid response. Please try again."
-        );
-      }
-
+      // Try to parse as JSON
       let data;
       try {
-        data = await response.json();
+        data = JSON.parse(responseText);
       } catch (jsonError) {
+        console.error("Response parsing error:", jsonError);
+        console.error("Response text:", responseText);
+        console.error("Content-Type:", contentType);
+        console.error("Status:", response.status);
         throw new Error(
           "Server returned an invalid response. Please try again."
         );

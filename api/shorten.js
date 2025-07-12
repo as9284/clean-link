@@ -42,12 +42,32 @@ export default async function handler(req, res) {
 
   // Wrap everything in a try-catch to ensure we always return JSON
   try {
-    // Validate request body
-    if (!req.body) {
-      return res.status(400).json({ error: "Request body is required" });
+    // Parse request body - handle both parsed and raw body
+    let body = req.body;
+    
+    console.log("Request body type:", typeof body);
+    console.log("Request body:", body);
+    console.log("Request headers:", req.headers);
+    
+    // If body is a string, try to parse it as JSON
+    if (typeof body === "string") {
+      try {
+        body = JSON.parse(body);
+        console.log("Parsed body:", body);
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError);
+        return res.status(400).json({ error: "Invalid JSON in request body" });
+      }
+    }
+    
+    // If body is still not an object, return error
+    if (!body || typeof body !== "object") {
+      console.error("Invalid body type:", typeof body);
+      return res.status(400).json({ error: "Request body must be a JSON object" });
     }
 
-    const { url } = req.body;
+    const { url } = body;
+    console.log("Extracted URL:", url);
 
     if (!url) {
       return res.status(400).json({ error: "URL is required" });
