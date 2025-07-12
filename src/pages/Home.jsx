@@ -11,109 +11,113 @@ export const Home = () => {
   const abortControllerRef = useRef(null);
   const { isDarkMode, toggleTheme } = useTheme();
 
-  const shortenLink = useCallback(async (retryCount = 0) => {
-    if (!inputLink) {
-      setError("Please enter a valid URL");
-      return;
-    }
-
-    // Prevent multiple simultaneous requests
-    if (requestInProgress.current) {
-      return;
-    }
-
-    // Cancel any ongoing request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-
-    requestInProgress.current = true;
-    setError("");
-    setShortenedLink("");
-    setLoading(true);
-
-    try {
-      const response = await fetch("/api/shorten", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: inputLink }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      // Check if request was aborted
-      if (abortControllerRef.current.signal.aborted) {
+  const shortenLink = useCallback(
+    async (retryCount = 0) => {
+      if (!inputLink) {
+        setError("Please enter a valid URL");
         return;
       }
 
-      // Check if response is JSON
-      const contentType = response.headers.get("content-type");
-      const responseText = await response.text();
-
-      // Try to parse as JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (jsonError) {
-        console.error("Response parsing error:", jsonError);
-        console.error("Response text:", responseText);
-        console.error("Content-Type:", contentType);
-        console.error("Status:", response.status);
-        throw new Error(
-          "Server returned an invalid response. Please try again."
-        );
+      // Prevent multiple simultaneous requests
+      if (requestInProgress.current) {
+        return;
       }
 
-      if (!response.ok) {
-        // Handle different types of errors
-        if (response.status === 400) {
-          throw new Error(data.error || "Invalid URL format");
-        } else if (response.status === 503 && retryCount < 2) {
-          // Retry for service unavailability
-          const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s
-          setTimeout(() => {
-            // Only retry if we're still in the same request cycle
-            if (requestInProgress.current) {
-              shortenLink(retryCount + 1);
-            }
-          }, delay);
+      // Cancel any ongoing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller for this request
+      abortControllerRef.current = new AbortController();
+
+      requestInProgress.current = true;
+      setError("");
+      setShortenedLink("");
+      setLoading(true);
+
+      try {
+        const response = await fetch("/api/shorten", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url: inputLink }),
+          signal: abortControllerRef.current.signal,
+        });
+
+        // Check if request was aborted
+        if (abortControllerRef.current.signal.aborted) {
           return;
-        } else if (response.status === 503) {
+        }
+
+        // Check if response is JSON
+        const contentType = response.headers.get("content-type");
+        const responseText = await response.text();
+
+        // Try to parse as JSON
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (jsonError) {
+          console.error("Response parsing error:", jsonError);
+          console.error("Response text:", responseText);
+          console.error("Content-Type:", contentType);
+          console.error("Status:", response.status);
           throw new Error(
-            "URL shortening services are temporarily unavailable. Please try again in a moment."
+            "Server returned an invalid response. Please try again."
           );
+        }
+
+        if (!response.ok) {
+          // Handle different types of errors
+          if (response.status === 400) {
+            throw new Error(data.error || "Invalid URL format");
+          } else if (response.status === 503 && retryCount < 3) {
+            // Retry for service unavailability with longer delays for long URLs
+            const baseDelay = inputLink.length > 200 ? 3000 : 1000; // Longer base delay for long URLs
+            const delay = Math.pow(2, retryCount) * baseDelay; // Exponential backoff: 3s/6s/12s for long URLs, 1s/2s/4s for short
+            setTimeout(() => {
+              // Only retry if we're still in the same request cycle
+              if (requestInProgress.current) {
+                shortenLink(retryCount + 1);
+              }
+            }, delay);
+            return;
+          } else if (response.status === 503) {
+            throw new Error(
+              "URL shortening services are temporarily unavailable. Please try again in a moment."
+            );
+          } else {
+            throw new Error(data.error || "Failed to shorten the link.");
+          }
+        }
+
+        if (data.result_url) {
+          setShortenedLink(data.result_url);
+          // Add a small delay to prevent rapid successive requests
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } else if (data.error) {
+          throw new Error(data.error);
         } else {
-          throw new Error(data.error || "Failed to shorten the link.");
+          throw new Error("Invalid response from server");
+        }
+      } catch (err) {
+        // Only set error if request wasn't aborted
+        if (!abortControllerRef.current?.signal.aborted) {
+          setError(err.message || "Something went wrong. Please try again.");
+        }
+      } finally {
+        // Only reset state if this is still the current request
+        if (requestInProgress.current) {
+          setLoading(false);
+          requestInProgress.current = false;
+          abortControllerRef.current = null;
         }
       }
-
-      if (data.result_url) {
-        setShortenedLink(data.result_url);
-        // Add a small delay to prevent rapid successive requests
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      } else if (data.error) {
-        throw new Error(data.error);
-      } else {
-        throw new Error("Invalid response from server");
-      }
-    } catch (err) {
-      // Only set error if request wasn't aborted
-      if (!abortControllerRef.current?.signal.aborted) {
-        setError(err.message || "Something went wrong. Please try again.");
-      }
-    } finally {
-      // Only reset state if this is still the current request
-      if (requestInProgress.current) {
-        setLoading(false);
-        requestInProgress.current = false;
-        abortControllerRef.current = null;
-      }
-    }
-  }, [inputLink]);
+    },
+    [inputLink]
+  );
 
   const copyToClipboard = () => {
     if (!shortenedLink) return;
@@ -138,17 +142,23 @@ export const Home = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 sm:p-6 theme-transition"
+      style={{ backgroundColor: "var(--bg-primary)" }}
+    >
       <div className="w-full max-w-lg sm:max-w-2xl">
         {/* Header */}
         <div className="text-center mb-12 sm:mb-16">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-6 sm:mb-8 theme-transition" style={{ backgroundColor: 'var(--text-primary)' }}>
+          <div
+            className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-6 sm:mb-8 theme-transition"
+            style={{ backgroundColor: "var(--text-primary)" }}
+          >
             <svg
               className="w-6 h-6 theme-transition"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
-              style={{ color: 'var(--bg-primary)' }}
+              style={{ color: "var(--bg-primary)" }}
             >
               <path
                 strokeLinecap="round"
@@ -158,11 +168,20 @@ export const Home = () => {
               />
             </svg>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-3 sm:mb-4 theme-transition" style={{ color: 'var(--text-primary)' }}>
+          <h1
+            className="text-3xl sm:text-4xl font-black tracking-tight mb-3 sm:mb-4 theme-transition"
+            style={{ color: "var(--text-primary)" }}
+          >
             CLEAN LINK
           </h1>
-          <div className="w-16 sm:w-24 h-px mx-auto mb-4 sm:mb-6 theme-transition" style={{ backgroundColor: 'var(--text-primary)' }}></div>
-          <p className="text-xs sm:text-sm uppercase tracking-widest theme-transition" style={{ color: 'var(--text-secondary)' }}>
+          <div
+            className="w-16 sm:w-24 h-px mx-auto mb-4 sm:mb-6 theme-transition"
+            style={{ backgroundColor: "var(--text-primary)" }}
+          ></div>
+          <p
+            className="text-xs sm:text-sm uppercase tracking-widest theme-transition"
+            style={{ color: "var(--text-secondary)" }}
+          >
             Minimal URL shortening
           </p>
         </div>
@@ -172,21 +191,43 @@ export const Home = () => {
           <button
             onClick={toggleTheme}
             className="p-2 rounded-full theme-transition hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-offset-2"
-            style={{ 
-              backgroundColor: 'var(--text-primary)',
-              color: 'var(--bg-primary)',
-              '--tw-ring-color': 'var(--text-primary)',
-              '--tw-ring-offset-color': 'var(--bg-primary)'
+            style={{
+              backgroundColor: "var(--text-primary)",
+              color: "var(--bg-primary)",
+              "--tw-ring-color": "var(--text-primary)",
+              "--tw-ring-offset-color": "var(--bg-primary)",
             }}
-            aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={
+              isDarkMode ? "Switch to light mode" : "Switch to dark mode"
+            }
           >
             {isDarkMode ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1}
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                />
               </svg>
             ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 009-9c0-.528-.086-1.036-.246-1.528z" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1}
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 009-9c0-.528-.086-1.036-.246-1.528z"
+                />
               </svg>
             )}
           </button>
@@ -196,7 +237,10 @@ export const Home = () => {
         <div className="space-y-6 sm:space-y-8">
           {/* Input section */}
           <div className="relative">
-            <div className="flex flex-col sm:flex-row sm:items-center border-b-2 pb-4 transition-all duration-300 focus-within:border-opacity-100 theme-transition" style={{ borderColor: 'var(--border-primary)' }}>
+            <div
+              className="flex flex-col sm:flex-row sm:items-center border-b-2 pb-4 transition-all duration-300 focus-within:border-opacity-100 theme-transition"
+              style={{ borderColor: "var(--border-primary)" }}
+            >
               <input
                 type="text"
                 value={inputLink}
@@ -208,20 +252,20 @@ export const Home = () => {
                 onChange={(e) => setInputLink(e.target.value)}
                 placeholder="Enter URL to shorten"
                 className="flex-1 bg-transparent text-base sm:text-lg font-light transition-all duration-300 focus:outline-none theme-transition"
-                style={{ 
-                  color: 'var(--text-primary)',
-                  '--tw-placeholder-color': 'var(--text-secondary)'
+                style={{
+                  color: "var(--text-primary)",
+                  "--tw-placeholder-color": "var(--text-secondary)",
                 }}
               />
               <button
                 onClick={shortenLink}
                 disabled={loading}
                 className="mt-4 sm:mt-0 sm:ml-4 px-6 sm:px-8 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 theme-transition"
-                style={{ 
-                  backgroundColor: 'var(--button-bg)',
-                  color: 'var(--button-text)',
-                  '--tw-ring-color': 'var(--button-bg)',
-                  '--tw-ring-offset-color': 'var(--bg-primary)'
+                style={{
+                  backgroundColor: "var(--button-bg)",
+                  color: "var(--button-text)",
+                  "--tw-ring-color": "var(--button-bg)",
+                  "--tw-ring-offset-color": "var(--bg-primary)",
                 }}
               >
                 {loading ? (
@@ -236,7 +280,10 @@ export const Home = () => {
             </div>
 
             {error && (
-              <div className="mt-4 text-sm font-light animate-fade-in theme-transition" style={{ color: '#ef4444' }}>
+              <div
+                className="mt-4 text-sm font-light animate-fade-in theme-transition"
+                style={{ color: "#ef4444" }}
+              >
                 {error}
               </div>
             )}
@@ -245,21 +292,33 @@ export const Home = () => {
           {/* Result section */}
           {shortenedLink && (
             <div className="animate-fade-in">
-              <div className="border-t pt-6 sm:pt-8 theme-transition" style={{ borderColor: 'var(--border-primary)' }}>
+              <div
+                className="border-t pt-6 sm:pt-8 theme-transition"
+                style={{ borderColor: "var(--border-primary)" }}
+              >
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h3 className="text-base sm:text-lg font-medium theme-transition" style={{ color: 'var(--text-primary)' }}>
+                  <h3
+                    className="text-base sm:text-lg font-medium theme-transition"
+                    style={{ color: "var(--text-primary)" }}
+                  >
                     SHORTENED URL
                   </h3>
-                  <div className="w-2 h-2 rounded-full theme-transition" style={{ backgroundColor: 'var(--text-primary)' }}></div>
+                  <div
+                    className="w-2 h-2 rounded-full theme-transition"
+                    style={{ backgroundColor: "var(--text-primary)" }}
+                  ></div>
                 </div>
 
-                <div className="p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg theme-transition" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                <div
+                  className="p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg theme-transition"
+                  style={{ backgroundColor: "var(--bg-secondary)" }}
+                >
                   <a
                     href={shortenedLink}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm sm:text-lg font-light transition-colors duration-300 break-all theme-transition"
-                    style={{ color: 'var(--text-primary)' }}
+                    style={{ color: "var(--text-primary)" }}
                   >
                     {shortenedLink}
                   </a>
@@ -268,11 +327,11 @@ export const Home = () => {
                 <button
                   onClick={copyToClipboard}
                   className="w-full py-3 sm:py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-300 flex items-center justify-center transform hover:scale-105 active:scale-95 theme-transition"
-                  style={{ 
-                    backgroundColor: 'var(--button-bg)',
-                    color: 'var(--button-text)',
-                    '--tw-ring-color': 'var(--button-bg)',
-                    '--tw-ring-offset-color': 'var(--bg-primary)'
+                  style={{
+                    backgroundColor: "var(--button-bg)",
+                    color: "var(--button-text)",
+                    "--tw-ring-color": "var(--button-bg)",
+                    "--tw-ring-offset-color": "var(--bg-primary)",
                   }}
                 >
                   {copySuccess ? (

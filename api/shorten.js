@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 
 // Timeout configuration
-const TIMEOUT_MS = 10000; // 10 seconds
+const TIMEOUT_MS = 20000; // 20 seconds - increased for long URLs
 
 // Create a timeout wrapper for fetch
 async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
@@ -44,11 +44,11 @@ export default async function handler(req, res) {
   try {
     // Parse request body - handle both parsed and raw body
     let body = req.body;
-    
+
     console.log("Request body type:", typeof body);
     console.log("Request body:", body);
     console.log("Request headers:", req.headers);
-    
+
     // If body is a string, try to parse it as JSON
     if (typeof body === "string") {
       try {
@@ -59,11 +59,13 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Invalid JSON in request body" });
       }
     }
-    
+
     // If body is still not an object, return error
     if (!body || typeof body !== "object") {
       console.error("Invalid body type:", typeof body);
-      return res.status(400).json({ error: "Request body must be a JSON object" });
+      return res
+        .status(400)
+        .json({ error: "Request body must be a JSON object" });
     }
 
     const { url } = body;
@@ -75,12 +77,12 @@ export default async function handler(req, res) {
 
     // Clean and validate URL format
     let cleanUrl = url.trim();
-    
+
     // Add protocol if missing
     if (!cleanUrl.match(/^https?:\/\//)) {
-      cleanUrl = 'https://' + cleanUrl;
+      cleanUrl = "https://" + cleanUrl;
     }
-    
+
     // Validate URL format
     let parsedUrl;
     try {
@@ -89,14 +91,20 @@ export default async function handler(req, res) {
       console.error("URL parsing error:", urlError);
       return res.status(400).json({ error: "Invalid URL format" });
     }
-    
+
     // Ensure we have a valid hostname
     if (!parsedUrl.hostname) {
       return res.status(400).json({ error: "Invalid URL - missing hostname" });
     }
-    
+
     console.log("Cleaned URL:", cleanUrl);
     console.log("Parsed URL:", parsedUrl.toString());
+    console.log("URL length:", cleanUrl.length);
+
+    // Use longer timeout for very long URLs
+    const isLongUrl = cleanUrl.length > 200;
+    const timeoutForUrl = isLongUrl ? 30000 : TIMEOUT_MS; // 30 seconds for long URLs
+    console.log("Using timeout:", timeoutForUrl, "ms");
 
     // Try multiple URL shortening services with better error handling
     const services = [
@@ -116,7 +124,8 @@ export default async function handler(req, res) {
                   "User-Agent": "CleanLink/1.0",
                 },
                 body: formData.toString(),
-              }
+              },
+              timeoutForUrl
             );
 
             if (response.ok) {
@@ -143,7 +152,8 @@ export default async function handler(req, res) {
                 headers: {
                   "User-Agent": "CleanLink/1.0",
                 },
-              }
+              },
+              timeoutForUrl
             );
 
             if (response.ok) {
@@ -170,7 +180,8 @@ export default async function handler(req, res) {
                 headers: {
                   "User-Agent": "CleanLink/1.0",
                 },
-              }
+              },
+              timeoutForUrl
             );
 
             if (response.ok) {
@@ -197,7 +208,8 @@ export default async function handler(req, res) {
                 headers: {
                   "User-Agent": "CleanLink/1.0",
                 },
-              }
+              },
+              timeoutForUrl
             );
 
             if (response.ok) {
@@ -230,7 +242,10 @@ export default async function handler(req, res) {
     // Find the first successful result
     for (const result of results) {
       if (result.status === "fulfilled" && result.value.result) {
-        console.log(`Success with ${result.value.service}:`, result.value.result);
+        console.log(
+          `Success with ${result.value.service}:`,
+          result.value.result
+        );
         return res.json({ result_url: result.value.result });
       }
     }
