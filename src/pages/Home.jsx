@@ -11,113 +11,71 @@ export const Home = () => {
   const abortControllerRef = useRef(null);
   const { isDarkMode, toggleTheme } = useTheme();
 
-  const shortenLink = useCallback(
-    async (retryCount = 0) => {
-      if (!inputLink) {
-        setError("Please enter a valid URL");
+  const shortenLink = useCallback(async () => {
+    if (!inputLink) {
+      setError("Please enter a valid URL");
+      return;
+    }
+
+    // Prevent multiple simultaneous requests
+    if (requestInProgress.current) {
+      return;
+    }
+
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+
+    requestInProgress.current = true;
+    setError("");
+    setShortenedLink("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/shorten", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: inputLink }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      // Check if request was aborted
+      if (abortControllerRef.current.signal.aborted) {
         return;
       }
 
-      // Prevent multiple simultaneous requests
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to shorten the link.");
+      }
+
+      const data = await response.json();
+
+      if (data.result_url) {
+        setShortenedLink(data.result_url);
+      } else {
+        throw new Error("Invalid response from server");
+      }
+    } catch (err) {
+      // Only set error if request wasn't aborted
+      if (!abortControllerRef.current?.signal.aborted) {
+        setError(err.message || "Something went wrong. Please try again.");
+      }
+    } finally {
+      // Only reset state if this is still the current request
       if (requestInProgress.current) {
-        return;
+        setLoading(false);
+        requestInProgress.current = false;
+        abortControllerRef.current = null;
       }
-
-      // Cancel any ongoing request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      // Create new abort controller for this request
-      abortControllerRef.current = new AbortController();
-
-      requestInProgress.current = true;
-      setError("");
-      setShortenedLink("");
-      setLoading(true);
-
-      try {
-        const response = await fetch("/api/shorten", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url: inputLink }),
-          signal: abortControllerRef.current.signal,
-        });
-
-        // Check if request was aborted
-        if (abortControllerRef.current.signal.aborted) {
-          return;
-        }
-
-        // Check if response is JSON
-        const contentType = response.headers.get("content-type");
-        const responseText = await response.text();
-
-        // Try to parse as JSON
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (jsonError) {
-          console.error("Response parsing error:", jsonError);
-          console.error("Response text:", responseText);
-          console.error("Content-Type:", contentType);
-          console.error("Status:", response.status);
-          throw new Error(
-            "Server returned an invalid response. Please try again."
-          );
-        }
-
-        if (!response.ok) {
-          // Handle different types of errors
-          if (response.status === 400) {
-            throw new Error(data.error || "Invalid URL format");
-          } else if (response.status === 503 && retryCount < 3) {
-            // Retry for service unavailability with longer delays for long URLs
-            const baseDelay = inputLink.length > 200 ? 3000 : 1000; // Longer base delay for long URLs
-            const delay = Math.pow(2, retryCount) * baseDelay; // Exponential backoff: 3s/6s/12s for long URLs, 1s/2s/4s for short
-            setTimeout(() => {
-              // Only retry if we're still in the same request cycle
-              if (requestInProgress.current) {
-                shortenLink(retryCount + 1);
-              }
-            }, delay);
-            return;
-          } else if (response.status === 503) {
-            throw new Error(
-              "URL shortening services are temporarily unavailable. Please try again in a moment."
-            );
-          } else {
-            throw new Error(data.error || "Failed to shorten the link.");
-          }
-        }
-
-        if (data.result_url) {
-          setShortenedLink(data.result_url);
-          // Add a small delay to prevent rapid successive requests
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        } else if (data.error) {
-          throw new Error(data.error);
-        } else {
-          throw new Error("Invalid response from server");
-        }
-      } catch (err) {
-        // Only set error if request wasn't aborted
-        if (!abortControllerRef.current?.signal.aborted) {
-          setError(err.message || "Something went wrong. Please try again.");
-        }
-      } finally {
-        // Only reset state if this is still the current request
-        if (requestInProgress.current) {
-          setLoading(false);
-          requestInProgress.current = false;
-          abortControllerRef.current = null;
-        }
-      }
-    },
-    [inputLink]
-  );
+    }
+  }, [inputLink]);
 
   const copyToClipboard = () => {
     if (!shortenedLink) return;

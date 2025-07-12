@@ -1,24 +1,73 @@
-import fetch from "node-fetch";
+import crypto from "crypto";
 
-// Timeout configuration
-const TIMEOUT_MS = 20000; // 20 seconds - increased for long URLs
+// In-memory storage for Vercel serverless functions
+// Note: This will reset on each cold start, but provides fast performance
+let urlStorage = {
+  urls: {},
+  codeToUrl: {},
+};
 
-// Create a timeout wrapper for fetch
-async function fetchWithTimeout(url, options = {}, timeout = TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
+// Try to load from environment variable if available (for persistence across deployments)
+if (process.env.URL_STORAGE) {
   try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response;
+    urlStorage = JSON.parse(process.env.URL_STORAGE);
   } catch (error) {
-    clearTimeout(timeoutId);
-    throw error;
+    console.error("Error parsing URL storage from env:", error);
   }
+}
+
+// Get storage (in-memory for Vercel)
+function getStorage() {
+  return urlStorage;
+}
+
+// Save storage (in-memory for Vercel)
+function saveStorage(storage) {
+  urlStorage = storage;
+  // Optionally, you could store this in a database or external service
+  // for persistence across deployments
+}
+
+// Generate a short code
+function generateShortCode(url) {
+  // Create a hash of the URL
+  const hash = crypto.createHash("md5").update(url).digest("hex");
+
+  // Take first 8 characters and convert to base62 for shorter codes
+  const base62Chars =
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  let num = parseInt(hash.substring(0, 8), 16);
+  let code = "";
+
+  // Convert to base62 (6 characters max)
+  for (let i = 0; i < 6; i++) {
+    code = base62Chars[num % 62] + code;
+    num = Math.floor(num / 62);
+  }
+
+  return code;
+}
+
+// Validate URL format
+function isValidUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// Clean URL
+function cleanUrl(url) {
+  let cleanUrl = url.trim();
+
+  // Add protocol if missing
+  if (!cleanUrl.match(/^https?:\/\//)) {
+    cleanUrl = "https://" + cleanUrl;
+  }
+
+  return cleanUrl;
 }
 
 export default async function handler(req, res) {
@@ -40,231 +89,76 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Wrap everything in a try-catch to ensure we always return JSON
   try {
-    // Parse request body - handle both parsed and raw body
+    // Parse request body
     let body = req.body;
-
-    console.log("Request body type:", typeof body);
-    console.log("Request body:", body);
-    console.log("Request headers:", req.headers);
 
     // If body is a string, try to parse it as JSON
     if (typeof body === "string") {
       try {
         body = JSON.parse(body);
-        console.log("Parsed body:", body);
       } catch (parseError) {
-        console.error("JSON parse error:", parseError);
         return res.status(400).json({ error: "Invalid JSON in request body" });
       }
     }
 
-    // If body is still not an object, return error
+    // Validate body
     if (!body || typeof body !== "object") {
-      console.error("Invalid body type:", typeof body);
       return res
         .status(400)
         .json({ error: "Request body must be a JSON object" });
     }
 
     const { url } = body;
-    console.log("Extracted URL:", url);
 
     if (!url) {
       return res.status(400).json({ error: "URL is required" });
     }
 
-    // Clean and validate URL format
-    let cleanUrl = url.trim();
+    // Clean and validate URL
+    const cleanUrl = cleanUrl(url);
 
-    // Add protocol if missing
-    if (!cleanUrl.match(/^https?:\/\//)) {
-      cleanUrl = "https://" + cleanUrl;
-    }
-
-    // Validate URL format
-    let parsedUrl;
-    try {
-      parsedUrl = new URL(cleanUrl);
-    } catch (urlError) {
-      console.error("URL parsing error:", urlError);
+    if (!isValidUrl(cleanUrl)) {
       return res.status(400).json({ error: "Invalid URL format" });
     }
 
-    // Ensure we have a valid hostname
-    if (!parsedUrl.hostname) {
-      return res.status(400).json({ error: "Invalid URL - missing hostname" });
+    // Get storage
+    const storage = getStorage();
+
+    // Check if URL already exists
+    if (storage.urls[cleanUrl]) {
+      const shortCode = storage.urls[cleanUrl];
+      const shortUrl = `${req.headers.host}/r/${shortCode}`;
+      return res.json({ result_url: shortUrl });
     }
 
-    console.log("Cleaned URL:", cleanUrl);
-    console.log("Parsed URL:", parsedUrl.toString());
-    console.log("URL length:", cleanUrl.length);
+    // Generate short code
+    let shortCode = generateShortCode(cleanUrl);
 
-    // Use longer timeout for very long URLs
-    const isLongUrl = cleanUrl.length > 200;
-    const timeoutForUrl = isLongUrl ? 30000 : TIMEOUT_MS; // 30 seconds for long URLs
-    console.log("Using timeout:", timeoutForUrl, "ms");
-
-    // Try multiple URL shortening services with better error handling
-    const services = [
-      {
-        name: "CleanURI",
-        handler: async () => {
-          try {
-            const formData = new URLSearchParams();
-            formData.append("url", cleanUrl);
-
-            const response = await fetchWithTimeout(
-              "https://cleanuri.com/api/v1/shorten",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/x-www-form-urlencoded",
-                  "User-Agent": "CleanLink/1.0",
-                },
-                body: formData.toString(),
-              },
-              timeoutForUrl
-            );
-
-            if (response.ok) {
-              const data = await response.json();
-              if (data.result_url) {
-                return data.result_url;
-              }
-            }
-            throw new Error(`CleanURI failed with status: ${response.status}`);
-          } catch (error) {
-            throw new Error(`CleanURI error: ${error.message}`);
-          }
-        },
-      },
-      {
-        name: "TinyURL",
-        handler: async () => {
-          try {
-            const response = await fetchWithTimeout(
-              `https://tinyurl.com/api-create.php?url=${encodeURIComponent(
-                cleanUrl
-              )}`,
-              {
-                headers: {
-                  "User-Agent": "CleanLink/1.0",
-                },
-              },
-              timeoutForUrl
-            );
-
-            if (response.ok) {
-              const shortenedUrl = await response.text();
-              if (shortenedUrl && !shortenedUrl.includes("Error")) {
-                return shortenedUrl;
-              }
-            }
-            throw new Error(`TinyURL failed with status: ${response.status}`);
-          } catch (error) {
-            throw new Error(`TinyURL error: ${error.message}`);
-          }
-        },
-      },
-      {
-        name: "Is.gd",
-        handler: async () => {
-          try {
-            const response = await fetchWithTimeout(
-              `https://is.gd/create.php?format=json&url=${encodeURIComponent(
-                cleanUrl
-              )}`,
-              {
-                headers: {
-                  "User-Agent": "CleanLink/1.0",
-                },
-              },
-              timeoutForUrl
-            );
-
-            if (response.ok) {
-              const data = await response.json();
-              if (data.shorturl) {
-                return data.shorturl;
-              }
-            }
-            throw new Error(`Is.gd failed with status: ${response.status}`);
-          } catch (error) {
-            throw new Error(`Is.gd error: ${error.message}`);
-          }
-        },
-      },
-      {
-        name: "V.gd",
-        handler: async () => {
-          try {
-            const response = await fetchWithTimeout(
-              `https://v.gd/create.php?format=json&url=${encodeURIComponent(
-                cleanUrl
-              )}`,
-              {
-                headers: {
-                  "User-Agent": "CleanLink/1.0",
-                },
-              },
-              timeoutForUrl
-            );
-
-            if (response.ok) {
-              const data = await response.json();
-              if (data.shorturl) {
-                return data.shorturl;
-              }
-            }
-            throw new Error(`V.gd failed with status: ${response.status}`);
-          } catch (error) {
-            throw new Error(`V.gd error: ${error.message}`);
-          }
-        },
-      },
-    ];
-
-    // Try each service in parallel with individual timeouts
-    const promises = services.map(async (service) => {
-      try {
-        const result = await service.handler();
-        return { service: service.name, result };
-      } catch (error) {
-        console.error(`${service.name} failed:`, error.message);
-        return { service: service.name, error: error.message };
-      }
-    });
-
-    const results = await Promise.allSettled(promises);
-
-    // Find the first successful result
-    for (const result of results) {
-      if (result.status === "fulfilled" && result.value.result) {
-        console.log(
-          `Success with ${result.value.service}:`,
-          result.value.result
-        );
-        return res.json({ result_url: result.value.result });
-      }
+    // Ensure uniqueness (handle collisions)
+    let attempts = 0;
+    while (storage.codeToUrl[shortCode] && attempts < 10) {
+      // Add random suffix to make it unique
+      const randomSuffix = Math.random().toString(36).substring(2, 4);
+      shortCode = generateShortCode(cleanUrl + randomSuffix);
+      attempts++;
     }
 
-    // If all services failed, provide a more detailed error
-    const failedServices = results
-      .filter((r) => r.status === "fulfilled" && r.value.error)
-      .map((r) => r.value.service);
+    // Store the mapping
+    storage.urls[cleanUrl] = shortCode;
+    storage.codeToUrl[shortCode] = cleanUrl;
 
-    console.error("All services failed for URL:", cleanUrl);
-    console.error("Failed services:", failedServices);
+    // Save to storage
+    saveStorage(storage);
 
-    return res.status(503).json({
-      error:
-        "All URL shortening services are temporarily unavailable. Please try again in a moment.",
-      details: `Failed services: ${failedServices.join(", ")}`,
-    });
+    // Generate short URL
+    const shortUrl = `${req.headers.host}/r/${shortCode}`;
+
+    console.log(`Successfully shortened URL: ${cleanUrl} -> ${shortUrl}`);
+
+    return res.json({ result_url: shortUrl });
   } catch (error) {
-    // Ensure we always return JSON, even for unexpected errors
+    console.error("Error in shorten handler:", error);
     return res.status(500).json({
       error: "An unexpected error occurred. Please try again.",
       details: error.message,
