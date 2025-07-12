@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
+import { useTheme } from "../contexts/ThemeContext";
 
 export const Home = () => {
   const [inputLink, setInputLink] = useState("");
@@ -8,6 +9,7 @@ export const Home = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const requestInProgress = useRef(false);
   const abortControllerRef = useRef(null);
+  const { isDarkMode, toggleTheme } = useTheme();
 
   const shortenLink = useCallback(async (retryCount = 0) => {
     if (!inputLink) {
@@ -136,16 +138,17 @@ export const Home = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4 sm:p-6">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 theme-transition" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <div className="w-full max-w-lg sm:max-w-2xl">
         {/* Header */}
         <div className="text-center mb-12 sm:mb-16">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-black rounded-full mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-6 sm:mb-8 theme-transition" style={{ backgroundColor: 'var(--text-primary)' }}>
             <svg
-              className="w-6 h-6 text-white"
+              className="w-6 h-6 theme-transition"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              style={{ color: 'var(--bg-primary)' }}
             >
               <path
                 strokeLinecap="round"
@@ -155,20 +158,45 @@ export const Home = () => {
               />
             </svg>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-black tracking-tight mb-3 sm:mb-4">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-3 sm:mb-4 theme-transition" style={{ color: 'var(--text-primary)' }}>
             CLEAN LINK
           </h1>
-          <div className="w-16 sm:w-24 h-px bg-black mx-auto mb-4 sm:mb-6"></div>
-          <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-widest">
+          <div className="w-16 sm:w-24 h-px mx-auto mb-4 sm:mb-6 theme-transition" style={{ backgroundColor: 'var(--text-primary)' }}></div>
+          <p className="text-xs sm:text-sm uppercase tracking-widest theme-transition" style={{ color: 'var(--text-secondary)' }}>
             Minimal URL shortening
           </p>
+        </div>
+
+        {/* Theme Toggle */}
+        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-full theme-transition hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-offset-2"
+            style={{ 
+              backgroundColor: 'var(--text-primary)',
+              color: 'var(--bg-primary)',
+              '--tw-ring-color': 'var(--text-primary)',
+              '--tw-ring-offset-color': 'var(--bg-primary)'
+            }}
+            aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {isDarkMode ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 009-9c0-.528-.086-1.036-.246-1.528z" />
+              </svg>
+            )}
+          </button>
         </div>
 
         {/* Main content */}
         <div className="space-y-6 sm:space-y-8">
           {/* Input section */}
           <div className="relative">
-            <div className="flex flex-col sm:flex-row sm:items-center border-b-2 border-gray-200 pb-4 transition-all duration-300 focus-within:border-black">
+            <div className="flex flex-col sm:flex-row sm:items-center border-b-2 pb-4 transition-all duration-300 focus-within:border-opacity-100 theme-transition" style={{ borderColor: 'var(--border-primary)' }}>
               <input
                 type="text"
                 value={inputLink}
@@ -179,16 +207,26 @@ export const Home = () => {
                 }}
                 onChange={(e) => setInputLink(e.target.value)}
                 placeholder="Enter URL to shorten"
-                className="flex-1 bg-transparent text-base sm:text-lg placeholder-gray-400 focus:outline-none font-light transition-all duration-300 focus:placeholder-gray-300"
+                className="flex-1 bg-transparent text-base sm:text-lg font-light transition-all duration-300 focus:outline-none theme-transition"
+                style={{ 
+                  color: 'var(--text-primary)',
+                  '--tw-placeholder-color': 'var(--text-secondary)'
+                }}
               />
               <button
                 onClick={shortenLink}
                 disabled={loading}
-                className="mt-4 sm:mt-0 sm:ml-4 px-6 sm:px-8 py-3 bg-black text-white text-sm font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95"
+                className="mt-4 sm:mt-0 sm:ml-4 px-6 sm:px-8 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 theme-transition"
+                style={{ 
+                  backgroundColor: 'var(--button-bg)',
+                  color: 'var(--button-text)',
+                  '--tw-ring-color': 'var(--button-bg)',
+                  '--tw-ring-offset-color': 'var(--bg-primary)'
+                }}
               >
                 {loading ? (
                   <div className="flex items-center justify-center">
-                    <div className="w-4 h-4 border border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin mr-2"></div>
                     <span className="text-xs sm:text-sm">SHORTENING</span>
                   </div>
                 ) : (
@@ -198,7 +236,7 @@ export const Home = () => {
             </div>
 
             {error && (
-              <div className="mt-4 text-red-600 text-sm font-light animate-fade-in">
+              <div className="mt-4 text-sm font-light animate-fade-in theme-transition" style={{ color: '#ef4444' }}>
                 {error}
               </div>
             )}
@@ -207,20 +245,21 @@ export const Home = () => {
           {/* Result section */}
           {shortenedLink && (
             <div className="animate-fade-in">
-              <div className="border-t border-gray-200 pt-6 sm:pt-8">
+              <div className="border-t pt-6 sm:pt-8 theme-transition" style={{ borderColor: 'var(--border-primary)' }}>
                 <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h3 className="text-base sm:text-lg font-medium text-black">
+                  <h3 className="text-base sm:text-lg font-medium theme-transition" style={{ color: 'var(--text-primary)' }}>
                     SHORTENED URL
                   </h3>
-                  <div className="w-2 h-2 bg-black rounded-full"></div>
+                  <div className="w-2 h-2 rounded-full theme-transition" style={{ backgroundColor: 'var(--text-primary)' }}></div>
                 </div>
 
-                <div className="bg-gray-50 p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg">
+                <div className="p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg theme-transition" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                   <a
                     href={shortenedLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-black text-sm sm:text-lg font-light hover:text-gray-600 transition-colors duration-300 break-all"
+                    className="text-sm sm:text-lg font-light transition-colors duration-300 break-all theme-transition"
+                    style={{ color: 'var(--text-primary)' }}
                   >
                     {shortenedLink}
                   </a>
@@ -228,7 +267,13 @@ export const Home = () => {
 
                 <button
                   onClick={copyToClipboard}
-                  className="w-full py-3 sm:py-4 bg-black text-white text-sm font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-all duration-300 flex items-center justify-center transform hover:scale-105 active:scale-95"
+                  className="w-full py-3 sm:py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-300 flex items-center justify-center transform hover:scale-105 active:scale-95 theme-transition"
+                  style={{ 
+                    backgroundColor: 'var(--button-bg)',
+                    color: 'var(--button-text)',
+                    '--tw-ring-color': 'var(--button-bg)',
+                    '--tw-ring-offset-color': 'var(--bg-primary)'
+                  }}
                 >
                   {copySuccess ? (
                     <>

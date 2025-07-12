@@ -15,9 +15,36 @@
 }
 
 @layer base {
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f9fafb;
+    --text-primary: #000000;
+    --text-secondary: #6b7280;
+    --border-primary: #e5e7eb;
+    --border-focus: #000000;
+    --button-bg: #000000;
+    --button-text: #ffffff;
+    --button-hover: #374151;
+  }
+
+  [data-theme="dark"] {
+    --bg-primary: #111111;
+    --bg-secondary: #1f1f1f;
+    --text-primary: #ffffff;
+    --text-secondary: #9ca3af;
+    --border-primary: #374151;
+    --border-focus: #ffffff;
+    --button-bg: #ffffff;
+    --button-text: #000000;
+    --button-hover: #e5e7eb;
+  }
+
   body {
-    @apply font-inter bg-white text-black;
+    @apply font-inter;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
     font-feature-settings: "liga" 1, "kern" 1;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }
 
@@ -25,17 +52,22 @@
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
   }
-  
+
   .animate-bounce {
     animation: bounce 0.5s ease-in-out;
   }
-  
+
   .input-focus {
     @apply focus:outline-none focus:ring-0 focus:border-transparent;
   }
-  
+
   .button-interactive {
     @apply transition-all duration-200 ease-out;
+  }
+
+  .theme-transition {
+    transition: background-color 0.3s ease, color 0.3s ease,
+      border-color 0.3s ease;
   }
 }
 
@@ -51,10 +83,15 @@
 }
 
 @keyframes bounce {
-  0%, 20%, 53%, 80%, 100% {
+  0%,
+  20%,
+  53%,
+  80%,
+  100% {
     transform: translate3d(0, 0, 0);
   }
-  40%, 43% {
+  40%,
+  43% {
     transform: translate3d(0, -6px, 0);
   }
   70% {
