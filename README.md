@@ -1,6 +1,6 @@
 # Clean Link
 
-A minimal URL shortening application built with React and Express.
+A minimal URL shortening application built with React and Vercel serverless functions.
 
 ## Features
 
@@ -8,6 +8,7 @@ A minimal URL shortening application built with React and Express.
 - URL shortening using multiple services (CleanURI + TinyURL fallback)
 - Copy to clipboard functionality
 - Responsive design
+- Deployed on Vercel with serverless API
 
 ## Development
 
@@ -25,14 +26,7 @@ npm install
 ### Running in Development
 
 ```bash
-# Run both frontend and backend
-npm run dev:full
-
-# Or run them separately:
-# Terminal 1: Backend
-npm run server
-
-# Terminal 2: Frontend
+# Start the development server
 npm run dev
 ```
 
@@ -40,37 +34,52 @@ The app will be available at `http://localhost:5173`
 
 ## Deployment
 
-### For Production Deployment
+### Vercel Deployment
 
-1. **Build and start the application:**
+This app is configured for Vercel deployment with serverless functions.
+
+1. **Install Vercel CLI (optional):**
 
    ```bash
-   npm run start
+   npm i -g vercel
    ```
 
-2. **For deployment platforms (Heroku, Railway, etc.):**
+2. **Deploy to Vercel:**
 
-   - Set the `start` script as your main command
-   - The server will automatically build the React app and serve it
+   ```bash
+   vercel
+   ```
 
-3. **Environment Variables:**
-   - `PORT`: The port your server will run on (default: 3001)
-   - `NODE_ENV`: Set to `production` for production environment
+3. **Or connect your GitHub repository to Vercel:**
+   - Push your code to GitHub
+   - Connect your repository in the Vercel dashboard
+   - Vercel will automatically deploy on every push
 
-### Troubleshooting Deployment Issues
+### Project Structure for Vercel
+
+- `api/shorten.js` - Serverless function for URL shortening
+- `src/` - React frontend code
+- `vercel.json` - Vercel configuration
+- `package.json` - Build configuration
+
+### Environment Variables
+
+No environment variables are required for basic functionality.
+
+### Troubleshooting Vercel Deployment
 
 If the link shortening doesn't work in production:
 
-1. **Check server logs** for API errors
-2. **Verify the API endpoints** are accessible from your deployment platform
-3. **Ensure CORS is properly configured** (already handled in the code)
-4. **Check if the external URL shortening services** are accessible from your deployment region
+1. **Check Vercel function logs** in the Vercel dashboard
+2. **Verify the API endpoint** is accessible at `/api/shorten`
+3. **Check if the external URL shortening services** are accessible from Vercel's regions
+4. **Ensure CORS is properly configured** (handled in the serverless function)
 
-### Common Issues
+### Common Vercel Issues
 
-- **CORS errors**: The server is configured to handle CORS for both development and production
-- **API timeouts**: The app uses two different URL shortening services as fallback
-- **Static file serving**: The server automatically serves the built React app
+- **Function timeouts**: The serverless function has a timeout limit
+- **Cold starts**: First request might be slower
+- **API rate limits**: External services might have rate limits
 
 ## API Endpoints
 
@@ -81,5 +90,6 @@ If the link shortening doesn't work in production:
 ## Tech Stack
 
 - **Frontend**: React, Vite, Tailwind CSS
-- **Backend**: Express.js, Node.js
+- **Backend**: Vercel serverless functions
 - **URL Shortening**: CleanURI API + TinyURL API (fallback)
+- **Deployment**: Vercel

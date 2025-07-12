@@ -1,29 +1,21 @@
-import express from "express";
-import cors from "cors";
 import fetch from "node-fetch";
-import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+export default async function handler(req, res) {
+  // Enable CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-const app = express();
-const PORT = process.env.PORT || 3001;
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
 
-// Configure CORS for production
-app.use(
-  cors({
-    origin:
-      process.env.NODE_ENV === "production" ? true : "http://localhost:5173",
-    credentials: true,
-  })
-);
-app.use(express.json());
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-// Serve static files from the dist directory (built React app)
-app.use(express.static(path.join(__dirname, "dist")));
-
-app.post("/api/shorten", async (req, res) => {
   try {
     const { url } = req.body;
 
@@ -75,13 +67,4 @@ app.post("/api/shorten", async (req, res) => {
     console.error("Error shortening URL:", error);
     res.status(500).json({ error: "Failed to shorten URL. Please try again." });
   }
-});
-
-// Handle React routing - serve index.html for all non-API routes
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+}
