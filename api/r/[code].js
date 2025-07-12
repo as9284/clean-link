@@ -1,35 +1,11 @@
-// In-memory storage for Vercel serverless functions
-let urlStorage = {
-  urls: {},
-  codeToUrl: {},
-};
-
-// Try to load from environment variable if available
-if (process.env.URL_STORAGE) {
-  try {
-    urlStorage = JSON.parse(process.env.URL_STORAGE);
-  } catch (error) {
-    console.error("Error parsing URL storage from env:", error);
-  }
-}
-
-// Get storage (in-memory for Vercel)
-function getStorage() {
-  return urlStorage;
-}
+import { getStorage, setCorsHeaders, handlePreflight } from "../utils.js";
 
 export default async function handler(req, res) {
-  // Set proper headers
-  res.setHeader("Content-Type", "application/json");
-
-  // Enable CORS for all origins
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  // Set CORS headers
+  setCorsHeaders(res);
 
   // Handle preflight requests
-  if (req.method === "OPTIONS") {
-    res.status(200).end();
+  if (handlePreflight(req, res)) {
     return;
   }
 

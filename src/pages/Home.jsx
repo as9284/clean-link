@@ -1,103 +1,28 @@
-import React, { useState, useRef, useCallback } from "react";
-import { useTheme } from "../contexts/ThemeContext";
+import { useState, useEffect } from "react";
+import { useUrlShortener } from "../hooks/useUrlShortener";
+import { useClipboard } from "../hooks/useClipboard";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export const Home = () => {
   const [inputLink, setInputLink] = useState("");
-  const [shortenedLink, setShortenedLink] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [copySuccess, setCopySuccess] = useState(false);
-  const requestInProgress = useRef(false);
-  const abortControllerRef = useRef(null);
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { shortenedLink, error, loading, shortenUrl, reset } =
+    useUrlShortener();
+  const { copySuccess, copyToClipboard } = useClipboard();
 
-  const shortenLink = useCallback(async () => {
-    if (!inputLink) {
-      setError("Please enter a valid URL");
-      return;
-    }
+  const handleShorten = () => {
+    shortenUrl(inputLink);
+  };
 
-    // Prevent multiple simultaneous requests
-    if (requestInProgress.current) {
-      return;
-    }
-
-    // Cancel any ongoing request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Create new abort controller for this request
-    abortControllerRef.current = new AbortController();
-
-    requestInProgress.current = true;
-    setError("");
-    setShortenedLink("");
-    setLoading(true);
-
-    try {
-      const response = await fetch("/api/shorten", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: inputLink }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      // Check if request was aborted
-      if (abortControllerRef.current.signal.aborted) {
-        return;
-      }
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to shorten the link.");
-      }
-
-      const data = await response.json();
-
-      if (data.result_url) {
-        setShortenedLink(data.result_url);
-      } else {
-        throw new Error("Invalid response from server");
-      }
-    } catch (err) {
-      // Only set error if request wasn't aborted
-      if (!abortControllerRef.current?.signal.aborted) {
-        setError(err.message || "Something went wrong. Please try again.");
-      }
-    } finally {
-      // Only reset state if this is still the current request
-      if (requestInProgress.current) {
-        setLoading(false);
-        requestInProgress.current = false;
-        abortControllerRef.current = null;
-      }
-    }
-  }, [inputLink]);
-
-  const copyToClipboard = () => {
-    if (!shortenedLink) return;
-    navigator.clipboard
-      .writeText(shortenedLink)
-      .then(() => {
-        setCopySuccess(true);
-        setTimeout(() => setCopySuccess(false), 2000);
-      })
-      .catch(() => {
-        setCopySuccess(false);
-      });
+  const handleCopy = () => {
+    copyToClipboard(shortenedLink);
   };
 
   // Cleanup function for component unmount
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      reset();
     };
-  }, []);
+  }, [reset]);
 
   return (
     <div
@@ -145,51 +70,7 @@ export const Home = () => {
         </div>
 
         {/* Theme Toggle */}
-        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full theme-transition hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-offset-2"
-            style={{
-              backgroundColor: "var(--text-primary)",
-              color: "var(--bg-primary)",
-              "--tw-ring-color": "var(--text-primary)",
-              "--tw-ring-offset-color": "var(--bg-primary)",
-            }}
-            aria-label={
-              isDarkMode ? "Switch to light mode" : "Switch to dark mode"
-            }
-          >
-            {isDarkMode ? (
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9 9 0 0012 21a9 9 0 009-9c0-.528-.086-1.036-.246-1.528z"
-                />
-              </svg>
-            )}
-          </button>
-        </div>
+        <ThemeToggle />
 
         {/* Main content */}
         <div className="space-y-6 sm:space-y-8">
@@ -204,19 +85,25 @@ export const Home = () => {
                 value={inputLink}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    shortenLink();
+                    handleShorten();
                   }
                 }}
                 onChange={(e) => setInputLink(e.target.value)}
                 placeholder="Enter URL to shorten"
-                className="flex-1 bg-transparent text-base sm:text-lg font-light transition-all duration-300 focus:outline-none theme-transition"
+                className="flex-1 bg-transparent text-base sm:text-lg font-light transition-all duration-300 focus:outline-none theme-transition px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 focus:border-blue-400 focus:bg-white dark:focus:bg-gray-900 overflow-x-auto whitespace-nowrap min-w-0"
                 style={{
                   color: "var(--text-primary)",
-                  "--tw-placeholder-color": "var(--text-secondary)",
+                  backgroundColor: "var(--input-bg, transparent)",
+                  '--tw-placeholder-color': 'var(--text-secondary)',
+                  fontSize: '1.1rem',
+                  maxWidth: '100%',
                 }}
+                inputMode="url"
+                autoComplete="off"
+                spellCheck={false}
               />
               <button
-                onClick={shortenLink}
+                onClick={handleShorten}
                 disabled={loading}
                 className="mt-4 sm:mt-0 sm:ml-4 px-6 sm:px-8 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 theme-transition"
                 style={{
@@ -283,7 +170,7 @@ export const Home = () => {
                 </div>
 
                 <button
-                  onClick={copyToClipboard}
+                  onClick={handleCopy}
                   className="w-full py-3 sm:py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-300 flex items-center justify-center transform hover:scale-105 active:scale-95 theme-transition"
                   style={{
                     backgroundColor: "var(--button-bg)",
