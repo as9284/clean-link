@@ -23,7 +23,7 @@ export const Home = () => {
     setError("");
     setShortenedLink("");
     setLoading(true);
-    
+
     try {
       const response = await fetch("/api/shorten", {
         method: "POST",
@@ -32,21 +32,25 @@ export const Home = () => {
         },
         body: JSON.stringify({ url: inputLink }),
       });
-      
+
       // Check if response is JSON
       const contentType = response.headers.get("content-type");
-      
+
       if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Server returned an invalid response. Please try again.");
+        throw new Error(
+          "Server returned an invalid response. Please try again."
+        );
       }
-      
+
       let data;
       try {
         data = await response.json();
       } catch (jsonError) {
-        throw new Error("Server returned an invalid response. Please try again.");
+        throw new Error(
+          "Server returned an invalid response. Please try again."
+        );
       }
-      
+
       if (!response.ok) {
         // Handle different types of errors
         if (response.status === 400) {
@@ -57,16 +61,18 @@ export const Home = () => {
           setTimeout(() => shortenLink(retryCount + 1), delay);
           return;
         } else if (response.status === 503) {
-          throw new Error("URL shortening services are temporarily unavailable. Please try again in a moment.");
+          throw new Error(
+            "URL shortening services are temporarily unavailable. Please try again in a moment."
+          );
         } else {
           throw new Error(data.error || "Failed to shorten the link.");
         }
       }
-      
+
       if (data.result_url) {
         setShortenedLink(data.result_url);
         // Add a small delay to prevent rapid successive requests
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       } else if (data.error) {
         throw new Error(data.error);
       } else {
@@ -227,13 +233,6 @@ export const Home = () => {
               </div>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="absolute bottom-4 sm:bottom-8 left-1/2 transform -translate-x-1/2">
-          <p className="text-xs text-gray-400 uppercase tracking-widest">
-            Simple • Fast • Clean
-          </p>
         </div>
       </div>
     </div>
