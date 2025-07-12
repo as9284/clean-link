@@ -73,12 +73,30 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "URL is required" });
     }
 
+    // Clean and validate URL format
+    let cleanUrl = url.trim();
+    
+    // Add protocol if missing
+    if (!cleanUrl.match(/^https?:\/\//)) {
+      cleanUrl = 'https://' + cleanUrl;
+    }
+    
     // Validate URL format
+    let parsedUrl;
     try {
-      new URL(url);
+      parsedUrl = new URL(cleanUrl);
     } catch (urlError) {
+      console.error("URL parsing error:", urlError);
       return res.status(400).json({ error: "Invalid URL format" });
     }
+    
+    // Ensure we have a valid hostname
+    if (!parsedUrl.hostname) {
+      return res.status(400).json({ error: "Invalid URL - missing hostname" });
+    }
+    
+    console.log("Cleaned URL:", cleanUrl);
+    console.log("Parsed URL:", parsedUrl.toString());
 
     // Try multiple URL shortening services with better error handling
     const services = [
@@ -87,7 +105,7 @@ export default async function handler(req, res) {
         handler: async () => {
           try {
             const formData = new URLSearchParams();
-            formData.append("url", url);
+            formData.append("url", cleanUrl);
 
             const response = await fetchWithTimeout(
               "https://cleanuri.com/api/v1/shorten",
@@ -119,7 +137,7 @@ export default async function handler(req, res) {
           try {
             const response = await fetchWithTimeout(
               `https://tinyurl.com/api-create.php?url=${encodeURIComponent(
-                url
+                cleanUrl
               )}`,
               {
                 headers: {
@@ -146,7 +164,7 @@ export default async function handler(req, res) {
           try {
             const response = await fetchWithTimeout(
               `https://is.gd/create.php?format=json&url=${encodeURIComponent(
-                url
+                cleanUrl
               )}`,
               {
                 headers: {
@@ -167,6 +185,33 @@ export default async function handler(req, res) {
           }
         },
       },
+      {
+        name: "V.gd",
+        handler: async () => {
+          try {
+            const response = await fetchWithTimeout(
+              `https://v.gd/create.php?format=json&url=${encodeURIComponent(
+                cleanUrl
+              )}`,
+              {
+                headers: {
+                  "User-Agent": "CleanLink/1.0",
+                },
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.shorturl) {
+                return data.shorturl;
+              }
+            }
+            throw new Error(`V.gd failed with status: ${response.status}`);
+          } catch (error) {
+            throw new Error(`V.gd error: ${error.message}`);
+          }
+        },
+      },
     ];
 
     // Try each service in parallel with individual timeouts
@@ -175,6 +220,7 @@ export default async function handler(req, res) {
         const result = await service.handler();
         return { service: service.name, result };
       } catch (error) {
+        console.error(`${service.name} failed:`, error.message);
         return { service: service.name, error: error.message };
       }
     });
@@ -184,6 +230,7 @@ export default async function handler(req, res) {
     // Find the first successful result
     for (const result of results) {
       if (result.status === "fulfilled" && result.value.result) {
+        console.log(`Success with ${result.value.service}:`, result.value.result);
         return res.json({ result_url: result.value.result });
       }
     }
@@ -192,6 +239,9 @@ export default async function handler(req, res) {
     const failedServices = results
       .filter((r) => r.status === "fulfilled" && r.value.error)
       .map((r) => r.value.service);
+
+    console.error("All services failed for URL:", cleanUrl);
+    console.error("Failed services:", failedServices);
 
     return res.status(503).json({
       error:
