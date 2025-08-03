@@ -27,7 +27,15 @@ export const Home = () => {
         throw new Error("Failed to shorten the link.");
       }
       const data = await response.json();
-      setShortenedLink(data.result_url);
+
+      // Handle the cleanuri.com API response format
+      if (data.result_url) {
+        setShortenedLink(data.result_url);
+      } else if (data.shorturl) {
+        setShortenedLink(data.shorturl);
+      } else {
+        throw new Error("Invalid response format");
+      }
     } catch (err) {
       setError("Something went wrong. Please try again.");
     } finally {
